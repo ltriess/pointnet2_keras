@@ -116,7 +116,7 @@ class PointNet2(tf.keras.models.Model):
         return elem
 
     def call(
-        self, points: tf.Tensor, training: tf.Tensor = None, _: tf.Tensor = None
+        self, points: tf.Tensor, training: tf.Tensor = None, mask: tf.Tensor = None
     ) -> (tf.Tensor, dict):
 
         features = None
@@ -131,7 +131,9 @@ class PointNet2(tf.keras.models.Model):
         # Input: (B, N, 3) None
         # Output: (B, num_points[-1], mlp[-1][-1])
         for sa_layer in self.set_abstraction_layers:
-            points, features = sa_layer(inputs=[points, features], training=training)
+            points, features = sa_layer(
+                inputs=[points, features], training=training, mask=mask
+            )
 
             # Add these to dict in case user wants more information.
             abstraction_output["features"].append(sa_layer.get_features())
