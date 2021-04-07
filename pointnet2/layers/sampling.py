@@ -24,7 +24,7 @@ class RandomPointSampling(tf.keras.layers.Layer):
         indices = tf.range(start=0, limit=tf.shape(points)[1], dtype=tf.int32)
         # Broadcast the indices to the complete mini batch.
         indices = tf.broadcast_to(indices[tf.newaxis, ...], tf.shape(points)[:-1])
-        check = tf.assert_equal(tf.shape(points)[:-1], tf.shape(indices))
+        check = tf.compat.v1.assert_equal(tf.shape(points)[:-1], tf.shape(indices))
         # Use map function to apply different shuffles to each batch indices.
         with tf.control_dependencies([check]):
             indices = tf.map_fn(lambda i: tf.random.shuffle(i), indices)
