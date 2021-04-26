@@ -217,7 +217,7 @@ class SetAbstractionModule(tf.keras.models.Model):
         return self._sampled_points, self._grouped_features
 
     def get_query_points(self):
-        return self._grouped_points
+        return self._sampled_points
 
     def get_features(self):
         return self._grouped_features
