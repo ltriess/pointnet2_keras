@@ -11,6 +11,19 @@ import tensorflow as tf
 from .modules import SetAbstractionModule
 
 
+def _get_element_list(elem, levels) -> list:
+    if elem is None:
+        elem = [None] * levels
+    elif isinstance(elem, (list, tuple)):
+        if len(elem) != levels:
+            raise ValueError("Length of elements must equal number of levels!")
+    else:
+        if not isinstance(elem, (int, float, bool, str)):
+            raise TypeError("Unknown type {t}!".format(t=type(elem)))
+        elem = [elem] * levels
+    return elem
+
+
 class PointNet2(tf.keras.models.Model):
     def __init__(
         self,
@@ -36,7 +49,7 @@ class PointNet2(tf.keras.models.Model):
                 A list for each abstraction module contains a list of integers
                 for the output sizes of the MLP on each point.
             mlp_region : List[int]
-                A list for each abrtaction module contains a list of integers
+                A list for each abstraction module contains a list of integers
                 for the output sizes of the MLP on each region.
                 If `None`, no further processing on the regions is conducted.
             num_queries : int
@@ -72,16 +85,16 @@ class PointNet2(tf.keras.models.Model):
         if not self.levels > 0:
             raise ValueError("You must provide a list of mlp units.")
 
-        mlp_region = self.get_element_list(mlp_region)
-        num_queries = self.get_element_list(num_queries)
-        num_neighbors = self.get_element_list(num_neighbors)
-        radius = self.get_element_list(radius)
-        use_knn = self.get_element_list(use_knn)
-        use_xyz = self.get_element_list(use_xyz)
-        pooling = self.get_element_list(pooling)
-        batch_norm = self.get_element_list(batch_norm)
-        sampling = self.get_element_list(sampling)
-        normalization = self.get_element_list(normalization)
+        mlp_region = _get_element_list(mlp_region, levels=self.levels)
+        num_queries = _get_element_list(num_queries, levels=self.levels)
+        num_neighbors = _get_element_list(num_neighbors, levels=self.levels)
+        radius = _get_element_list(radius, levels=self.levels)
+        use_knn = _get_element_list(use_knn, levels=self.levels)
+        use_xyz = _get_element_list(use_xyz, levels=self.levels)
+        pooling = _get_element_list(pooling, levels=self.levels)
+        batch_norm = _get_element_list(batch_norm, levels=self.levels)
+        sampling = _get_element_list(sampling, levels=self.levels)
+        normalization = _get_element_list(normalization, levels=self.levels)
 
         self.set_abstraction_layers = []
         for layer_idx in range(self.levels):
@@ -102,18 +115,6 @@ class PointNet2(tf.keras.models.Model):
                     name="SetAbstractionModule{idx:02d}".format(idx=layer_idx),
                 )
             )
-
-    def get_element_list(self, elem) -> list:
-        if elem is None:
-            elem = [None] * self.levels
-        elif isinstance(elem, (list, tuple)):
-            if len(elem) != self.levels:
-                raise ValueError("Length of elements must equal number of levels!")
-        else:
-            if not isinstance(elem, (int, float, bool, str)):
-                raise TypeError("Unknown type {t}!".format(t=type(elem)))
-            elem = [elem] * self.levels
-        return elem
 
     def call(
         self, points: tf.Tensor, training: tf.Tensor = None, mask: tf.Tensor = None
