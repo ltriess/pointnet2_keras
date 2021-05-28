@@ -106,9 +106,7 @@ class SetAbstractionModule(tf.keras.models.Model):
                 self.point_feature_embedding.add(
                     tf.keras.layers.BatchNormalization(axis=3, momentum=0.9)
                 )
-            self.point_feature_embedding.add(
-                tf.keras.layers.Lambda(lambda x: tf.nn.leaky_relu(x), name="leaky_relu")
-            )
+            self.point_feature_embedding.add(tf.keras.layers.LeakyReLU())
 
         # Pooling in Local Regions.
         if pooling == "max":
@@ -138,11 +136,7 @@ class SetAbstractionModule(tf.keras.models.Model):
                     self.region_feature_embedding.add(
                         tf.keras.layers.BatchNormalization(axis=3, momentum=0.9)
                     )
-                self.region_feature_embedding.add(
-                    tf.keras.layers.Lambda(
-                        lambda x: tf.nn.leaky_relu(x), name="leaky_relu"
-                    )
-                )
+                self.region_feature_embedding.add(tf.keras.layers.LeakyReLU())
 
         # The output tensors.
         self._sampled_points = None
