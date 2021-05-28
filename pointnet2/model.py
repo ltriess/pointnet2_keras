@@ -36,9 +36,9 @@ class PointNet2(tf.keras.models.Model):
         use_knn: Union[bool, List[bool]] = True,
         use_xyz: Union[bool, List[bool]] = True,
         pooling: Union[str, List[str]] = "max",
-        batch_norm: Union[bool, List[bool]] = True,
+        feature_norm: Union[str, List[str]] = None,
         sampling: Union[str, List[str]] = "farthest",
-        normalization: Union[str, List[str]] = "trans",
+        coord_norm: Union[str, List[str]] = "trans",
         **_,
     ):
         super().__init__()
@@ -67,10 +67,14 @@ class PointNet2(tf.keras.models.Model):
             use_xyz : bool
                 If `True`, concat points to local point features. If `False`, only use
                 local point features.
+            feature_norm : str or List[str]
+                The feature normalization to use. Can be `batch` for batch normalization
+                or `layer` for layer normalization. If None, no normalization is applied.
             sampling : str
                 Either use Farthest or Random Point Sampling.
-            normalization : str, one of `trans`, `transrot`
-                Either use translation for normalization or translation and rotation.
+            coord_norm : str or List[str], must be one of `trans`, `transrot`
+                Use either translation (`trans`) or translation with rotation (`transrot`)
+                for the normalization of the points coordinates.
             name : str
                 Name of the model.
 
@@ -92,9 +96,9 @@ class PointNet2(tf.keras.models.Model):
         use_knn = _get_element_list(use_knn, levels=self.levels)
         use_xyz = _get_element_list(use_xyz, levels=self.levels)
         pooling = _get_element_list(pooling, levels=self.levels)
-        batch_norm = _get_element_list(batch_norm, levels=self.levels)
+        feature_norm = _get_element_list(feature_norm, levels=self.levels)
         sampling = _get_element_list(sampling, levels=self.levels)
-        normalization = _get_element_list(normalization, levels=self.levels)
+        coord_norm = _get_element_list(coord_norm, levels=self.levels)
 
         self.set_abstraction_layers = []
         for layer_idx in range(self.levels):
@@ -109,9 +113,9 @@ class PointNet2(tf.keras.models.Model):
                     use_knn=use_knn[layer_idx],
                     use_xyz=use_xyz[layer_idx],
                     pooling=pooling[layer_idx],
-                    batch_norm=batch_norm[layer_idx],
+                    feature_norm=feature_norm[layer_idx],
                     sampling=sampling[layer_idx],
-                    normalization=normalization[layer_idx],
+                    coord_norm=coord_norm[layer_idx],
                     name="SetAbstractionModule{idx:02d}".format(idx=layer_idx),
                 )
             )
@@ -122,11 +126,11 @@ class PointNet2(tf.keras.models.Model):
 
         features = None
         abstraction_output = {
-            "features": [],
-            "queries": [],
-            "indices": [],
-            "neighborhoods": [],
-            "neighborhoods_norm": [],
+            "features": [None],
+            "queries": [points],
+            "indices": [None],
+            "neighborhoods": [None],
+            "neighborhoods_norm": [None],
         }
 
         # Input: (B, N, 3) None

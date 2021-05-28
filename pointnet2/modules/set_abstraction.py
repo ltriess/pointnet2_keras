@@ -27,9 +27,9 @@ class SetAbstractionModule(tf.keras.models.Model):
         use_knn: bool = False,
         use_xyz: bool = True,
         pooling: str = "max",
-        batch_norm: bool = True,
+        feature_norm: str = None,
         sampling: str = "farthest",
-        normalization: str = "trans",
+        coord_norm: str = "trans",
         name: str = None,
     ):
         """Initialize Set Abstraction Module
@@ -55,10 +55,14 @@ class SetAbstractionModule(tf.keras.models.Model):
             use_xyz : bool
                 If `True`, concat points to local point features. If `False`, only use
                 local point features.
+            feature_norm : str
+                The feature normalization to use. Can be `batch` for batch normalization
+                or `layer` for layer normalization. If None, no normalization is applied.
             sampling : str
                 Either use Farthest or Random Point Sampling.
-            normalization : str, one of `trans`, `transrot`
-                Either use translation for normalization or translation and rotation.
+            coord_norm : str, must be one of `trans`, `transrot`
+                Use either translation (`trans`) or translation with rotation (`transrot`)
+                for the normalization of the points coordinates.
             name : str
                 Name of the model.
 
@@ -79,6 +83,8 @@ class SetAbstractionModule(tf.keras.models.Model):
                 "num_points and num_samples must be set to a valid value. "
                 "I got {0}.".format((num_queries, num_neighbors))
             )
+        if feature_norm not in {None, "batch", "layer"}:
+            raise ValueError(f"Unknown feature normalization value: `{feature_norm}`")
 
         # Sampling and Grouping.
         if group_all:
@@ -91,7 +97,7 @@ class SetAbstractionModule(tf.keras.models.Model):
                 use_knn=use_knn,
                 use_xyz=use_xyz,
                 sampling=sampling,
-                normalization=normalization,
+                normalization=coord_norm,
             )
 
         # Point Feature Embedding.
@@ -102,10 +108,14 @@ class SetAbstractionModule(tf.keras.models.Model):
                     filters=out_channels, kernel_size=(1, 1), strides=(1, 1)
                 )
             )
-            if batch_norm:
+            if feature_norm == "batch":
                 self.point_feature_embedding.add(
-                    tf.keras.layers.BatchNormalization(axis=3, momentum=0.9)
+                    tf.keras.layers.BatchNormalization(momentum=0.9)
                 )
+            elif feature_norm == "layer":
+                self.point_feature_embedding.add(tf.keras.layers.LayerNormalization())
+            else:
+                pass
             self.point_feature_embedding.add(tf.keras.layers.LeakyReLU())
 
         # Pooling in Local Regions.
@@ -132,10 +142,16 @@ class SetAbstractionModule(tf.keras.models.Model):
                         filters=out_channels, kernel_size=(1, 1), strides=(1, 1)
                     )
                 )
-                if batch_norm:
+                if feature_norm == "batch":
                     self.region_feature_embedding.add(
-                        tf.keras.layers.BatchNormalization(axis=3, momentum=0.9)
+                        tf.keras.layers.BatchNormalization(momentum=0.9)
                     )
+                elif feature_norm == "layer":
+                    self.region_feature_embedding.add(
+                        tf.keras.layers.LayerNormalization()
+                    )
+                else:
+                    pass
                 self.region_feature_embedding.add(tf.keras.layers.LeakyReLU())
 
         # The output tensors.
