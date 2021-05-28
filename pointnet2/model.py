@@ -25,6 +25,52 @@ def _get_element_list(elem, levels) -> list:
 
 
 class PointNet2(tf.keras.models.Model):
+    """PointNet++ feature extractor with set abstraction modules.
+
+    Arguments:
+        mlp_point : List[List[int]]
+            A list for each abstraction module contains a list of integers
+            for the output sizes of the MLP on each point.
+        mlp_region : List[int]
+            A list for each abstraction module contains a list of integers
+            for the output sizes of the MLP on each region.
+            If `None`, no further processing on the regions is conducted.
+        num_queries : int or List[int]
+            The number of points sampled in farthest point sampling.
+        num_neighbors : int or List[int]
+            The number of points sampled in each local region.
+        radius : float or List[float]
+            The search radius in the local region if use_knn is `False`.
+        reduce : bool
+            If `True`, then group all points into one point cloud. This is
+            equivalent to num_points=1, radius=inf, num_samples=N with N being the
+            number of points.
+        use_knn : bool or List[bool]
+            If `True`, use KNN search. If `False`, use radius search.
+        use_xyz : bool or List[bool]
+            If `True`, concat points to local point features. If `False`, only use
+            local point features.
+        pooling : str or List[str]
+            The pooling to use to get the global from the local features.
+            Must be one of `max`, `avg`, `weighted_avg`, or `max_and_avg`.
+        feature_norm : str or List[str]
+            The feature normalization to use. Can be `batch` for batch normalization
+            or `layer` for layer normalization. If None, no normalization is applied.
+        sampling : str or List[str]
+            Either use Farthest or Random Point Sampling.
+        coord_norm : str or List[str], must be one of `trans`, `transrot`
+            Use either translation (`trans`) or translation with rotation (`transrot`)
+            for the normalization of the points coordinates.
+        name : str
+            Name of the model.
+
+    Raises:
+        ValueError if use_knn is `False` and radius is `None`
+        ValueError if group_all is `False` and one of num_points, num_samples, or
+            radius is `None`
+
+    """
+
     def __init__(
         self,
         mlp_point: List[List[int]],
@@ -42,48 +88,6 @@ class PointNet2(tf.keras.models.Model):
         **_,
     ):
         super().__init__()
-        """PointNet++ feature extractor with set abstraction modules.
-
-        Arguments:
-            mlp_point : List[List[int]]
-                A list for each abstraction module contains a list of integers
-                for the output sizes of the MLP on each point.
-            mlp_region : List[int]
-                A list for each abstraction module contains a list of integers
-                for the output sizes of the MLP on each region.
-                If `None`, no further processing on the regions is conducted.
-            num_queries : int
-                The number of points sampled in farthest point sampling.
-            num_neighbors : int
-                The number of points sampled in each local region.
-            radius : float
-                The search radius in the local region if use_knn is `False`.
-            reduce : bool
-                If `True`, then group all points into one point cloud. This is
-                equivalent to num_points=1, radius=inf, num_samples=N with N being the
-                number of points.
-            use_knn : bool
-                If `True`, use KNN search. If `False`, use radius search.
-            use_xyz : bool
-                If `True`, concat points to local point features. If `False`, only use
-                local point features.
-            feature_norm : str or List[str]
-                The feature normalization to use. Can be `batch` for batch normalization
-                or `layer` for layer normalization. If None, no normalization is applied.
-            sampling : str
-                Either use Farthest or Random Point Sampling.
-            coord_norm : str or List[str], must be one of `trans`, `transrot`
-                Use either translation (`trans`) or translation with rotation (`transrot`)
-                for the normalization of the points coordinates.
-            name : str
-                Name of the model.
-
-        Raises:
-            ValueError if use_knn is `False` and radius is `None`
-            ValueError if group_all is `False` and one of num_points, num_samples, or
-                radius is `None`
-
-        """
 
         self.levels = len(mlp_point)
         if not self.levels > 0:
@@ -123,6 +127,17 @@ class PointNet2(tf.keras.models.Model):
     def call(
         self, points: tf.Tensor, training: tf.Tensor = None, mask: tf.Tensor = None
     ) -> (tf.Tensor, dict):
+        """Call of PointNet++ feature extractor
+
+        Arguments:
+            points: tf.Tensor(shape=(B, N, 3), dtype=tf.float32)
+            training: tf.Tensor(shape=(), dtype=tf.bool)
+            mask: tf.Tensor
+
+        Returns:
+            features: tf.Tensor(shape=(B, num_points[-1], mlp[-1][-1]), dtype=tf.float32)
+            abstraction_output: Dict[List[tf.Tensor]]
+        """
 
         features = None
         abstraction_output = {
