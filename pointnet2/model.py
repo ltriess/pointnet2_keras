@@ -24,7 +24,81 @@ def _get_element_list(elem, levels) -> list:
     return elem
 
 
-class PointNet2(tf.keras.models.Model):
+class Classifier(tf.keras.models.Model):
+    """PointNet++ Classifier
+
+    This classifier is used for the normal version of the feature extractor and
+    the Multi-Scale Grouping (MSG) version as well.
+    The dropout ratios differ a bit. For MSG it's 0.6, for the normal version it's 0.5.
+
+    Arguments:
+        units : List[float]
+            A list of integers for the unit sizes of the dense layers.
+            Paper default is [512, 256, 40].
+        dropout_rate : float or List[float]
+            The dropout ratio applied after each dense layer. Paper default is 0.5~0.6.
+        feature_norm : str or List[str]
+            The feature normalization to use. Can be `batch` for batch normalization or
+            `layer` for layer normalization. If None, no normalization is applied.
+            Paper default is `batch`.
+
+    Raises:
+        ValueError if feature_norm is not one of `batch`, `layer`, or None.
+
+    """
+
+    def __init__(
+        self,
+        units: List[int],
+        dropout_rate: Union[float, List[float]] = 0.5,
+        feature_norm: Union[str, List[str]] = None,
+    ):
+        super().__init__()
+
+        self.levels = len(units)
+
+        dropout_rate = _get_element_list(dropout_rate, levels=self.levels)
+        feature_norm = _get_element_list(feature_norm, levels=self.levels)
+
+        if not all(n in {None, "batch", "layer"} for n in feature_norm):
+            raise ValueError("Normalization can only be `None`, `batch` or `layer`!")
+
+        self.model = tf.keras.models.Sequential("PointNet2Classifier")
+
+        for i in range(self.levels - 1):
+            self.model.add(tf.keras.layers.Dense(units[i]))
+            if feature_norm[i] == "batch":
+                self.model.add(tf.keras.layers.BatchNormalization())
+            elif feature_norm[i] == "layer":
+                self.model.add(tf.keras.layers.LayerNormalization())
+            else:
+                pass
+            self.model.add(tf.keras.layers.LeakyReLU())
+            self.model.add(tf.keras.layers.Dropout(rate=dropout_rate[i]))
+        self.model.add(tf.keras.layers.Dense(units[-1]))
+
+    def call(
+        self, features: tf.Tensor, training: tf.Tensor = None, mask: tf.Tensor = None
+    ) -> tf.Tensor:
+        """Call of PointNet++ classifier
+
+        Arguments:
+            features: tf.Tensor(shape=(B, N, 3), dtype=tf.float32)
+                For example feature output of PointNet++ feature extractor.
+            training: tf.Tensor(shape=(), dtype=tf.bool)
+            mask: tf.Tensor
+
+        Returns:
+            logits: tf.Tensor(shape=(B, units[-1]), dtype=tf.float32)
+        """
+
+        features = tf.reshape(features, shape=(tf.shape(features)[0], -1))
+        logits = self.model(features)
+
+        return logits
+
+
+class FeatureExtractor(tf.keras.models.Model):
     """PointNet++ feature extractor with set abstraction modules.
 
     Arguments:
