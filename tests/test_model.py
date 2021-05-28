@@ -24,7 +24,7 @@ class TestModelUsage(tf.test.TestCase):
             reduce=True,
             use_knn=True,
             use_xyz=True,
-            batch_norm=False,
+            layer_norm=None,
         )
 
         points = tf.random.normal((2, 1000, 3))
@@ -81,13 +81,13 @@ class TestModelUsage(tf.test.TestCase):
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            normalization="transrot",
+            coord_norm="transrot",
         )
         PointNet2(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            normalization="trans",
+            coord_norm="trans",
         )
         self.assertRaises(
             ValueError,
@@ -95,7 +95,7 @@ class TestModelUsage(tf.test.TestCase):
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            normalization="something",
+            coord_norm="something",
         )
 
     def test_sampling_param(self):
@@ -120,24 +120,30 @@ class TestModelUsage(tf.test.TestCase):
             sampling="something",
         )
 
-    def test_bn_param(self):
+    def test_feature_norm_param(self):
         PointNet2(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            batch_norm=True,
+            feature_norm="batch",
         )
         PointNet2(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            batch_norm=False,
+            feature_norm="layer",
         )
         PointNet2(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            batch_norm=[True, True, False],
+            feature_norm=None,
+        )
+        PointNet2(
+            mlp_point=self.mlp_point,
+            num_queries=self.num_queries,
+            num_neighbors=self.num_neighbors,
+            feature_norm=["batch", "layer", None],
         )
         self.assertRaises(
             ValueError,
@@ -145,7 +151,23 @@ class TestModelUsage(tf.test.TestCase):
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
-            batch_norm=[True, False],
+            feature_norm=[True, False],
+        )
+        self.assertRaises(
+            ValueError,
+            PointNet2,
+            mlp_point=self.mlp_point,
+            num_queries=self.num_queries,
+            num_neighbors=self.num_neighbors,
+            feature_norm=["test", None, None],
+        )
+        self.assertRaises(
+            ValueError,
+            PointNet2,
+            mlp_point=self.mlp_point,
+            num_queries=self.num_queries,
+            num_neighbors=self.num_neighbors,
+            feature_norm="R2D2",
         )
 
     def test_xyz_usage_param(self):
