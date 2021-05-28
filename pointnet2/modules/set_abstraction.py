@@ -55,6 +55,9 @@ class SetAbstractionModule(tf.keras.models.Model):
             use_xyz : bool
                 If `True`, concat points to local point features. If `False`, only use
                 local point features.
+            pooling : str
+                The pooling to use to get the global from the local features.
+                Must be one of `max`, `avg`, `weighted_avg`, or `max_and_avg`.
             feature_norm : str
                 The feature normalization to use. Can be `batch` for batch normalization
                 or `layer` for layer normalization. If None, no normalization is applied.
@@ -70,6 +73,7 @@ class SetAbstractionModule(tf.keras.models.Model):
             ValueError if use_knn is `False` and radius is `None`
             ValueError if group_all is `False` and one of num_points, num_samples, or
                 radius is `None`
+            ValueError if pooling is not `max`, `avg`, `weighted_avg`, or `max_and_avg`.
 
         """
         super(SetAbstractionModule, self).__init__(name=name)
@@ -80,8 +84,8 @@ class SetAbstractionModule(tf.keras.models.Model):
             )
         if not group_all and any(x is None for x in [num_queries, num_neighbors]):
             raise ValueError(
-                "num_points and num_samples must be set to a valid value. "
-                "I got {0}.".format((num_queries, num_neighbors))
+                f"Received invalid values for num_queries and num_neighbors: "
+                f"{num_queries}, {num_neighbors}."
             )
         if feature_norm not in {None, "batch", "layer"}:
             raise ValueError(f"Unknown feature normalization value: `{feature_norm}`")
@@ -127,6 +131,8 @@ class SetAbstractionModule(tf.keras.models.Model):
             self.pool_local_regions = WeightedAvgPool()
         elif pooling == "max_and_avg":
             self.pool_local_regions = MaxAndAvgPool()
+        else:
+            raise ValueError(f"Unknown pooling option `{pooling}`!")
 
         # Region Feature Embedding.
         self.region_feature_embedding = tf.keras.Sequential(name="region_feature_embed")
