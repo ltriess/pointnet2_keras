@@ -7,7 +7,7 @@ __email__ = "mail@triess.eu"
 
 import tensorflow as tf
 
-from pointnet2 import PointNet2
+from pointnet2 import FeatureExtractor
 
 
 class TestModelUsage(tf.test.TestCase):
@@ -17,7 +17,7 @@ class TestModelUsage(tf.test.TestCase):
         self.num_neighbors = [10, 10, -1]
 
     def test_inputs_01(self):
-        model = PointNet2(
+        model = FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -37,7 +37,7 @@ class TestModelUsage(tf.test.TestCase):
 
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=num_queries,
             num_neighbors=num_neighbors,
@@ -49,7 +49,7 @@ class TestModelUsage(tf.test.TestCase):
         num_queries = [100, 10]
         num_neighbors = [10, 10]
 
-        model = PointNet2(
+        model = FeatureExtractor(
             mlp_point=mlp_point,
             num_queries=num_queries,
             num_neighbors=num_neighbors,
@@ -65,7 +65,7 @@ class TestModelUsage(tf.test.TestCase):
         num_queries = [100, 10]
         num_neighbors = [10, 10]
 
-        model = PointNet2(
+        model = FeatureExtractor(
             mlp_point=mlp_point,
             num_queries=num_queries,
             num_neighbors=num_neighbors,
@@ -77,13 +77,13 @@ class TestModelUsage(tf.test.TestCase):
         self.assertEqual((2, 10, 256), features.shape)
 
     def test_normalization_param(self):
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             coord_norm="transrot",
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -91,7 +91,7 @@ class TestModelUsage(tf.test.TestCase):
         )
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -99,13 +99,13 @@ class TestModelUsage(tf.test.TestCase):
         )
 
     def test_sampling_param(self):
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             sampling="random",
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -113,7 +113,7 @@ class TestModelUsage(tf.test.TestCase):
         )
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -121,25 +121,25 @@ class TestModelUsage(tf.test.TestCase):
         )
 
     def test_feature_norm_param(self):
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             feature_norm="batch",
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             feature_norm="layer",
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             feature_norm=None,
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -147,7 +147,7 @@ class TestModelUsage(tf.test.TestCase):
         )
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -155,7 +155,7 @@ class TestModelUsage(tf.test.TestCase):
         )
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -163,7 +163,7 @@ class TestModelUsage(tf.test.TestCase):
         )
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -171,19 +171,19 @@ class TestModelUsage(tf.test.TestCase):
         )
 
     def test_xyz_usage_param(self):
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             use_xyz=True,
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             use_xyz=False,
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -191,7 +191,7 @@ class TestModelUsage(tf.test.TestCase):
         )
 
     def test_knn_radius_search(self):
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
@@ -199,34 +199,34 @@ class TestModelUsage(tf.test.TestCase):
         )
         self.assertRaises(
             ValueError,
-            PointNet2,
+            FeatureExtractor,
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             use_knn=False,
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             radius=0.2,
             use_knn=False,
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             radius=[0.2, 0.4, 0.4],
             use_knn=False,
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,
             radius=0.4,
             use_knn=[True, False, True],
         )
-        PointNet2(
+        FeatureExtractor(
             mlp_point=self.mlp_point,
             num_queries=self.num_queries,
             num_neighbors=self.num_neighbors,

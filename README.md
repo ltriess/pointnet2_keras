@@ -48,25 +48,24 @@ We do not provide the implementation of the output heads.
 
 ```python
 import tensorflow as tf
-from pointnet2 import PointNet2
+from pointnet2 import FeatureExtractor, Classifier
 
-feature_extractor = PointNet2(
+feature_extractor = FeatureExtractor(
     mlp_point=[[64, 64, 128], [128, 128, 256]],
     num_queries=[100, 10],
     num_neighbors=[10, 10],
     radius=[0.2, 0.4],
     use_knn=False,
     use_xyz=True,
-    sampling="random",
 )
 
-classifier = ...
+classifier = Classifier(units=[128, 64, 8], dropout_rate=0.4)
 
 points = tf.random.normal(shape=(2, 1000, 3))
-features, _ = feature_extractor(points)
-predictions = classifier(features)
+features, _ = feature_extractor(points)  # [2, 256]
+predictions = classifier(features)  # [2, 8]
 ```
 
 ### License
 This code is released under MIT License (see [LICENSE](LICENSE) for details).
-This code is partially adapted from [charlesq34/pointnet2](https://github.com/charlesq34/pointnet2), as indicated in each affected file.
+This code is adapted from [charlesq34/pointnet2](https://github.com/charlesq34/pointnet2), as indicated in each affected file.
