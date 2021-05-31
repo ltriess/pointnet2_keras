@@ -8,7 +8,7 @@ from typing import List, Union
 
 import tensorflow as tf
 
-from .modules import SetAbstractionModule
+from .modules import FeaturePropagationModule, SetAbstractionModule
 
 
 def _get_element_list(elem, levels) -> list:
@@ -95,6 +95,103 @@ class Classifier(tf.keras.models.Model):
         features = tf.reshape(features, shape=(tf.shape(features)[0], -1))
         logits = self.model(features)
 
+        return logits
+
+
+class SegmentationModel(tf.keras.models.Model):
+    """PointNet++ feature extractor with set abstraction modules.
+
+    Arguments:
+        fp_units : List[List[int]]
+            A list for each feature propagation contains a list of integers
+            for the output sizes of the MLP on each point. Must contain same or less
+            amount of layers than the feature extractor.
+        num_classes: int
+            The number of classes to make predictions for.
+        feature_norm : str
+            The feature normalization to use. Can be `batch` for batch normalization
+            or `layer` for layer normalization. If None, no normalization is applied.
+
+    Raises:
+        ValueError if feature normalization is not valid.
+
+    """
+
+    def __init__(
+        self, fp_units: List[List[int]], num_classes: int, feature_norm: str = None
+    ):
+        super().__init__()
+
+        self.levels = len(fp_units)
+
+        if feature_norm not in {None, "batch", "layer"}:
+            raise ValueError(f"Received unknown feature norm `{feature_norm}`!")
+
+        self.segmentation_layers = [
+            FeaturePropagationModule(mlp_units=units, feature_norm="batch")
+            for units in fp_units
+        ]
+
+        self.head = tf.keras.models.Sequential(name="head")
+        self.head.add(tf.keras.layers.Conv1D(128, kernel_size=1, padding="valid"))
+        if feature_norm == "batch":
+            self.head.add(tf.keras.layers.BatchNormalization())
+        elif feature_norm == "layer":
+            self.head.add(tf.keras.layers.LayerNormalization())
+        else:
+            pass
+        self.head.add(tf.keras.layers.LeakyReLU())
+        self.head.add(tf.keras.layers.Dropout(rate=0.5))
+        self.head.add(
+            tf.keras.layers.Conv1D(num_classes, kernel_size=1, padding="valid")
+        )
+
+    def call(
+        self,
+        abstraction_output: dict,
+        training: tf.Tensor = None,
+        mask: tf.Tensor = None,
+    ) -> tf.Tensor:
+        """Call of PointNet++ segmentation model
+
+        Arguments:
+            abstraction_output: Dict[List[tf.Tensor[dtype=tf.float32]]
+                The abstraction output dict of PointNet++ feature extractor.
+            training: tf.Tensor(shape=(), dtype=tf.bool)
+            mask: tf.Tensor
+
+        Returns:
+            logits: tf.Tensor(shape=(B, N, num_classes), dtype=tf.float32)
+        """
+
+        if "queries" not in abstraction_output:
+            raise KeyError("Dict must contain key `queries`!")
+        if "features" not in abstraction_output:
+            raise KeyError("Dict must contain key `features`!")
+        if not len(abstraction_output["features"]) == len(
+            abstraction_output["queries"]
+        ):
+            raise RuntimeError("Inconsistent feature and query entries in dict!")
+        if not len(abstraction_output["features"]) >= self.levels:
+            raise RuntimeError("Received less features than levels in the model!")
+
+        # Feature Propagation Layers.
+        features = abstraction_output["features"][-2]
+        for i in range(self.levels):
+
+            features = self.segmentation_layers[i](
+                inputs=[
+                    abstraction_output["queries"][-i - 2],
+                    abstraction_output["queries"][-i - 1],
+                    abstraction_output["features"][-i - 2],
+                    features,
+                ],
+                training=training,
+                mask=mask,
+            )
+
+        # FC Layers.
+        logits = self.head(features)
         return logits
 
 
