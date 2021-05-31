@@ -83,6 +83,30 @@ class TestModelUsage(tf.test.TestCase):
         self.assertEqual((4, 16, 512), features.shape)
         self.assertEqual((4, 256, num_classes), logits.shape)
 
+    def test_partial_segmentation_with_reduce(self):
+        fp_units = [[256, 256], [256, 256]]
+        num_classes = 12
+
+        segmentation_feature_extractor = FeatureExtractor(
+            mlp_point=[[32, 32, 64], [64, 64, 128], [128, 128, 256], [256, 256, 512]],
+            num_queries=[1024, 256, 64, None],
+            num_neighbors=[32, 32, 32, None],
+            reduce=True,
+        )
+
+        segmentation_model = SegmentationModel(
+            fp_units=fp_units, num_classes=num_classes
+        )
+
+        points = tf.random.uniform((4, 2048, 3), minval=-1, maxval=1)
+        features, abstraction_output = segmentation_feature_extractor(
+            points, training=tf.constant(False)
+        )
+        logits = segmentation_model(abstraction_output, training=tf.constant(False))
+
+        self.assertEqual((4, 1, 512), features.shape)
+        self.assertEqual((4, 256, num_classes), logits.shape)
+
     def test_classification_paper_default(self):
         classifier = Classifier(units=[256, 128, 40], dropout_rate=0.4)
 

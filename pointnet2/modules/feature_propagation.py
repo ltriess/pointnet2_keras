@@ -111,11 +111,14 @@ class FeaturePropagationModule(tf.keras.models.Model):
 
         # Compute the weighting factor for each neighbor.
         distances_inv = tf.divide(1.0, distances)  # (B, M[i-1], K)
-        weight = distances_inv / tf.reduce_sum(distances_inv, axis=-1, keep_dims=True)
+        weight = distances_inv / tf.reduce_sum(distances_inv, axis=-1, keepdims=True)
 
-        with tf.control_dependencies(
-            [tf.assert_equal(tf.shape(points_lr)[1], tf.shape(features_lr)[1])]
-        ):
+        check = tf.compat.v1.assert_equal(
+            tf.shape(points_lr)[1],
+            tf.shape(features_lr)[1],
+            message="Number of points and number of features does not match!",
+        )
+        with tf.control_dependencies([check]):
             # Gather three features from points_lr to match one group in points_hr.
             # (B, M[i], C) and (B, M[i-1], K) --> (B, M[i-1], K, C[i])
             grouped_features = group(features_lr, indices)

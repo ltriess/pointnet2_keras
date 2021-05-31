@@ -4,7 +4,7 @@
 __author__ = "Larissa Triess"
 __email__ = "mail@triess.eu"
 
-from typing import List, Union
+from typing import Dict, List, Union
 
 import tensorflow as tf
 
@@ -145,7 +145,7 @@ class SegmentationModel(tf.keras.models.Model):
 
     def call(
         self,
-        abstraction_output: dict,
+        abstraction_output: Dict[str, List[tf.Tensor]],
         training: tf.Tensor = None,
         mask: tf.Tensor = None,
     ) -> tf.Tensor:
@@ -173,7 +173,7 @@ class SegmentationModel(tf.keras.models.Model):
             raise RuntimeError("Received less features than levels in the model!")
 
         # Feature Propagation Layers.
-        features = abstraction_output["features"][-2]
+        features = abstraction_output["features"][-1]
         for i in range(self.levels):
 
             features = self.segmentation_layers[i](
