@@ -4,6 +4,6 @@
 __author__ = "Larissa Triess"
 __email__ = "mail@triess.eu"
 
-from .model import Classifier, FeatureExtractor
+from .model import Classifier, FeatureExtractor, SegmentationModel
 
-__all__ = ["Classifier", "FeatureExtractor"]
+__all__ = ["Classifier", "FeatureExtractor", "SegmentationModel"]
