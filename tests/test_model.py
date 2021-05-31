@@ -7,27 +7,32 @@ __email__ = "mail@triess.eu"
 
 import tensorflow as tf
 
-from pointnet2 import FeatureExtractor, SegmentationModel
+from pointnet2 import Classifier, FeatureExtractor, SegmentationModel
 
 
 class TestModelUsage(tf.test.TestCase):
     def setUp(self):
-        self.mlp_point = [[32, 32, 64], [64, 64, 128], [128, 128, 256], [256, 256, 512]]
-        self.num_queries = [1024, 256, 64, 16]
-        self.num_neighbors = [32, 32, 32, 32]
-        self.radius = [0.1, 0.2, 0.4, 0.8]
-
-        self.feature_extractor = FeatureExtractor(
-            mlp_point=self.mlp_point,
-            num_queries=self.num_queries,
-            num_neighbors=self.num_neighbors,
-            radius=self.radius,
+        self.segmentation_feature_extractor = FeatureExtractor(
+            mlp_point=[[32, 32, 64], [64, 64, 128], [128, 128, 256], [256, 256, 512]],
+            num_queries=[1024, 256, 64, 16],
+            num_neighbors=[32, 32, 32, 32],
+            radius=[0.1, 0.2, 0.4, 0.8],
             reduce=False,
             use_knn=False,
             feature_norm="batch",
         )
 
-    def test_paper_default(self):
+        self.classification_feature_extractor = FeatureExtractor(
+            mlp_point=[[64, 64, 128], [128, 128, 256], [256, 512, 1024]],
+            num_queries=[512, 128, None],
+            num_neighbors=[32, 64, None],
+            radius=[0.2, 0.4, None],
+            reduce=True,
+            use_knn=False,
+            feature_norm="batch",
+        )
+
+    def test_segmentation_paper_default(self):
         fp_units = [[256, 256], [256, 256], [256, 128], [128, 128, 128]]
         num_classes = 12
 
@@ -36,7 +41,7 @@ class TestModelUsage(tf.test.TestCase):
         )
 
         points = tf.random.uniform((4, 2048, 3), minval=-1, maxval=1)
-        features, abstraction_output = self.feature_extractor(
+        features, abstraction_output = self.segmentation_feature_extractor(
             points, training=tf.constant(False)
         )
         logits = segmentation_model(abstraction_output, training=tf.constant(False))
@@ -53,13 +58,13 @@ class TestModelUsage(tf.test.TestCase):
         )
 
         points = tf.random.uniform((4, 2048, 3), minval=-1, maxval=1)
-        features, abstraction_output = self.feature_extractor(
+        features, abstraction_output = self.segmentation_feature_extractor(
             points, training=tf.constant(False)
         )
         logits = segmentation_model(abstraction_output, training=tf.constant(False))
 
         self.assertEqual((4, 16, 512), features.shape)
-        self.assertEqual((4, self.num_queries[0], num_classes), logits.shape)
+        self.assertEqual((4, 1024, num_classes), logits.shape)
 
     def test_partial_segmentation_02(self):
         fp_units = [[256, 256], [256, 128, 128]]
@@ -70,13 +75,32 @@ class TestModelUsage(tf.test.TestCase):
         )
 
         points = tf.random.uniform((4, 2048, 3), minval=-1, maxval=1)
-        features, abstraction_output = self.feature_extractor(
+        features, abstraction_output = self.segmentation_feature_extractor(
             points, training=tf.constant(False)
         )
         logits = segmentation_model(abstraction_output, training=tf.constant(False))
 
         self.assertEqual((4, 16, 512), features.shape)
-        self.assertEqual((4, self.num_queries[1], num_classes), logits.shape)
+        self.assertEqual((4, 256, num_classes), logits.shape)
+
+    def test_classification_paper_default(self):
+        classifier = Classifier(units=[256, 128, 40], dropout_rate=0.4)
+
+        points = tf.random.normal(shape=(4, 2048, 3))
+
+        features, _ = self.classification_feature_extractor(
+            points, training=tf.constant(False)
+        )
+        logits = classifier(features, training=tf.constant(False))
+
+        self.assertEqual((4, 1, 1024), features.shape)
+        self.assertEqual((4, 1, 40), logits.shape)
+
+        features = tf.reshape(features, shape=(tf.shape(features)[0], -1))
+        logits = classifier(features, training=tf.constant(False))
+
+        self.assertEqual((4, 1024), features.shape)
+        self.assertEqual((4, 40), logits.shape)
 
 
 class TestFeatureExtractorUsage(tf.test.TestCase):

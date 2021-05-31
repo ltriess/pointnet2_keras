@@ -63,7 +63,7 @@ class Classifier(tf.keras.models.Model):
         if not all(n in {None, "batch", "layer"} for n in feature_norm):
             raise ValueError("Normalization can only be `None`, `batch` or `layer`!")
 
-        self.model = tf.keras.models.Sequential("PointNet2Classifier")
+        self.model = tf.keras.models.Sequential(name="PointNet2Classifier")
 
         for i in range(self.levels - 1):
             self.model.add(tf.keras.layers.Dense(units[i]))
@@ -83,19 +83,16 @@ class Classifier(tf.keras.models.Model):
         """Call of PointNet++ classifier
 
         Arguments:
-            features: tf.Tensor(shape=(B, N, 3), dtype=tf.float32)
+            features: tf.Tensor(shape=(B, *, C), dtype=tf.float32)
                 For example feature output of PointNet++ feature extractor.
             training: tf.Tensor(shape=(), dtype=tf.bool)
             mask: tf.Tensor
 
         Returns:
-            logits: tf.Tensor(shape=(B, units[-1]), dtype=tf.float32)
+            logits: tf.Tensor(shape=(B, *, units[-1]), dtype=tf.float32)
         """
 
-        features = tf.reshape(features, shape=(tf.shape(features)[0], -1))
-        logits = self.model(features)
-
-        return logits
+        return self.model(features)
 
 
 class SegmentationModel(tf.keras.models.Model):
