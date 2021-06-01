@@ -135,5 +135,7 @@ class FeaturePropagationModule(tf.keras.models.Model):
             )
 
         # Compute new features from interpolations.
-        processed_features = self.mlp(interpolated_features)  # (B, M[i-1], mlp[-1])
+        processed_features = self.mlp(
+            interpolated_features, training=training, mask=mask
+        )  # (B, M[i-1], mlp[-1])
         return processed_features

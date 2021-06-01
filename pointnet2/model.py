@@ -92,7 +92,7 @@ class Classifier(tf.keras.models.Model):
             logits: tf.Tensor(shape=(B, *, units[-1]), dtype=tf.float32)
         """
 
-        return self.model(features)
+        return self.model(features, training=training, mask=mask)
 
 
 class SegmentationModel(tf.keras.models.Model):
@@ -188,7 +188,7 @@ class SegmentationModel(tf.keras.models.Model):
             )
 
         # FC Layers.
-        logits = self.head(features)
+        logits = self.head(features, training=training, mask=mask)
         return logits
 
 
