@@ -37,6 +37,7 @@ class Classifier(tf.keras.models.Model):
             Paper default is [512, 256, 40].
         dropout_rate : float or List[float]
             The dropout ratio applied after each dense layer. Paper default is 0.5~0.6.
+            If None, no dropout will be used.
         feature_norm : str or List[str]
             The feature normalization to use. Can be `batch` for batch normalization or
             `layer` for layer normalization. If None, no normalization is applied.
@@ -74,7 +75,8 @@ class Classifier(tf.keras.models.Model):
             else:
                 pass
             self.model.add(tf.keras.layers.LeakyReLU())
-            self.model.add(tf.keras.layers.Dropout(rate=dropout_rate[i]))
+            if dropout_rate[i] is not None:
+                self.model.add(tf.keras.layers.Dropout(rate=dropout_rate[i]))
         self.model.add(tf.keras.layers.Dense(units[-1]))
 
     def call(
@@ -105,6 +107,9 @@ class SegmentationModel(tf.keras.models.Model):
             amount of layers than the feature extractor.
         num_classes: int
             The number of classes to make predictions for.
+        dropout_rate : float or List[float]
+            The dropout ratio applied in each block. Paper default is 0.5.
+            If None, no dropout will be used.
         feature_norm : str
             The feature normalization to use. Can be `batch` for batch normalization
             or `layer` for layer normalization. If None, no normalization is applied.
@@ -115,7 +120,11 @@ class SegmentationModel(tf.keras.models.Model):
     """
 
     def __init__(
-        self, fp_units: List[List[int]], num_classes: int, feature_norm: str = None
+        self,
+        fp_units: List[List[int]],
+        num_classes: int,
+        dropout_rate: float = 0.5,
+        feature_norm: str = None,
     ):
         super().__init__()
 
@@ -138,7 +147,8 @@ class SegmentationModel(tf.keras.models.Model):
         else:
             pass
         self.head.add(tf.keras.layers.LeakyReLU())
-        self.head.add(tf.keras.layers.Dropout(rate=0.5))
+        if dropout_rate is not None:
+            self.head.add(tf.keras.layers.Dropout(rate=dropout_rate))
         self.head.add(
             tf.keras.layers.Conv1D(num_classes, kernel_size=1, padding="valid")
         )
