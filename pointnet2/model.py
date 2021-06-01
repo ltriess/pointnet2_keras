@@ -134,7 +134,7 @@ class SegmentationModel(tf.keras.models.Model):
             raise ValueError(f"Received unknown feature norm `{feature_norm}`!")
 
         self.segmentation_layers = [
-            FeaturePropagationModule(mlp_units=units, feature_norm="batch")
+            FeaturePropagationModule(mlp_units=units, feature_norm=feature_norm)
             for units in fp_units
         ]
 
