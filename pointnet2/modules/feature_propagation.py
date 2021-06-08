@@ -40,16 +40,6 @@ class FeaturePropagationModule(tf.keras.models.Model):
         if feature_norm not in {None, "batch", "layer"}:
             raise ValueError(f"Received unknown feature norm `{feature_norm}`!")
 
-        # Find the three nearest neighbors for points_hr in points_lr.
-        self.get_neighbor_indices_and_square_distances = (
-            lambda points_hr, points_lr: tf.map_fn(
-                lambda x: list(get_knn(x[0], x[1], self.K)),
-                [points_lr, points_hr],
-                dtype=[tf.int32, tf.float32],
-                name="feature_propagation_knn",
-            )
-        )
-
         self.mlp = tf.keras.models.Sequential(name="feature_propagation_mlp")
         for unit in mlp_units:
             self.mlp.add(
@@ -62,6 +52,51 @@ class FeaturePropagationModule(tf.keras.models.Model):
             else:
                 pass
             self.mlp.add(tf.keras.layers.LeakyReLU())
+
+    def get_neighbor_indices_and_distances(
+        self, points_hr, points_lr, epsilon: float = 1e-10
+    ) -> (tf.Tensor, tf.Tensor):
+        """Computes the indices and distances to the K nearest neighbors.
+
+        We could use the knn op directly to get the squared distances with
+        ```python
+            indices, distances = tf.map_fn(
+                lambda x: list(get_knn(x[0], x[1], self.K)),
+                [points_lr, points_hr],
+                dtype=[tf.int32, tf.float32],
+            )
+        ```
+        But then the gradient propagation might in some cases not work properly.
+        Therefore, we only get the indices from the op and subsequently re-compute
+        the distances.
+
+        Arguments:
+            points_hr : tf.Tensor(shape=(B, M[i-1], 3), dtype=tf.float32)
+            points_lr : tf.Tensor(shape=(B, M[i], 3), dtype=tf.float32)
+            epsilon : float
+
+        Returns:
+            indices : tf.Tensor(shape=(B, M[i-1], K), dtype=tf.int32)
+            distances : tf.Tensor(shape=(B, M[i-1], K), dtype=tf.float32)
+        """
+
+        # indices: (B, M[i-1], K)
+        indices = tf.map_fn(
+            lambda x: get_knn(x[0], x[1], self.K)[0],  # only return the indices
+            [points_lr, points_hr],  # points, queries
+            dtype=tf.int32,
+        )
+
+        # points_lr (B, M[i], 3) (+) indices (B, M[i-1], K) --> (B, M[i-1], K, 3)
+        grouped_points = group(points_lr, indices)
+
+        # Compute the distances: sqrt[(x - x')^2 + (y - y')^2 + (z + z')^2]
+        diff = points_hr[:, :, tf.newaxis, :] - grouped_points  # (B, M[i-1], K, 3)
+        distances = tf.norm(diff, axis=-1)  # (B, M[i-1], K)
+
+        distances = tf.maximum(distances, epsilon)  # avoid diving by zero afterwards
+
+        return indices, distances
 
     def call(
         self,
@@ -104,10 +139,9 @@ class FeaturePropagationModule(tf.keras.models.Model):
         features_hr = inputs[2]  # (B, M[i-1], C[i-1]) or None
         features_lr = inputs[3]  # (B, M[i], C[i])
 
-        indices, distances = self.get_neighbor_indices_and_square_distances(
-            points_hr, points_lr
+        indices, distances = self.get_neighbor_indices_and_distances(
+            points_hr=points_hr, points_lr=points_lr
         )  # 2x(B, M[i-1], K) with K=3
-        distances = tf.maximum(distances, 1e-10)  # avoid diving by zero
 
         # Compute the weighting factor for each neighbor.
         distances_inv = tf.divide(1.0, distances)  # (B, M[i-1], K)
